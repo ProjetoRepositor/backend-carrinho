@@ -8,7 +8,7 @@ public class Carrinho
     [DynamoDBHashKey]
     public string CarrinhoId { get; set; }
     [DynamoDBRangeKey]
-    public string UsuarioId { get; set; }
+    public string UsuarioEmail { get; set; }
     public List<Produto> Produtos { get; set; }
     public DateTime CriadoEm { get; set; }
 }

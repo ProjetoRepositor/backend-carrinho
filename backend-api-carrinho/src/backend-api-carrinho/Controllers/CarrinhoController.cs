@@ -13,25 +13,67 @@ public class CarrinhoController : ControllerBase
     
     public CarrinhoController(IAmazonDynamoDB context)
     {
-        this._context = new (context);
+        _context = new (context);
     }
 
-    private async Task<string> BuscaUsuarioId(string token)
-    {
-        return token;
-    }
-
-    private async Task<Carrinho?> LerCarrinhoAtual(string usuarioId)
+    private async Task<string?> BuscaUsuarioId(string token)
     {
         var scanConditions = new List<ScanCondition>
         {
-            new("UsuarioId", ScanOperator.Equal, usuarioId),
+            new("Token", ScanOperator.Equal, token)
+        };
+            
+        var identificacoes = await _context.ScanAsync<Identificacao>(scanConditions).GetRemainingAsync();
+
+        if (identificacoes is null || identificacoes.Count == 0)
+        {
+            return null;
+        }
+
+        return identificacoes[0].Email;
+    }
+    
+    private string GerarStringAleatoria(int tamanho)
+    {
+        Random random = new Random();
+        const string caracteresPermitidos = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+        char[] arrayCaracteres = new char[tamanho];
+        for (int i = 0; i < tamanho; i++)
+        {
+            arrayCaracteres[i] = caracteresPermitidos[random.Next(caracteresPermitidos.Length)];
+        }
+
+        return new string(arrayCaracteres);
+    }
+
+    private async Task<Carrinho> CriarCarrinho(string UsuarioEmail)
+    {
+        var novoCarrinho = new Carrinho
+        {
+            CarrinhoId = GerarStringAleatoria(20),
+            UsuarioEmail = UsuarioEmail,
+            Produtos = new(),
+            CriadoEm = DateTime.Now,
+        };
+        
+        await _context.SaveAsync(novoCarrinho);
+        
+        return novoCarrinho;
+    }
+
+    private async Task<Carrinho?> LerCarrinhoAtual(string usuarioEmail)
+    {
+        var scanConditions = new List<ScanCondition>
+        {
+            new("UsuarioId", ScanOperator.Equal, usuarioEmail),
         };
         var result = await _context.ScanAsync<Carrinho>(scanConditions).GetRemainingAsync();
 
         if (result == null || result.Count == 0)
         {
-            return null;
+            var carrinhoCriado = await CriarCarrinho(usuarioEmail);
+            return carrinhoCriado;
         }
 
         var response = result.OrderByDescending(r => r.CriadoEm).ToList()[0];
@@ -45,6 +87,12 @@ public class CarrinhoController : ControllerBase
     public async Task<IActionResult> AdicionarProduto([FromHeader] string token, Produto novoProduto)
     {
         var usuarioId = await BuscaUsuarioId(token);
+
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+        
         var carrinho = await LerCarrinhoAtual(usuarioId);
         
         if (carrinho is null)
@@ -72,6 +120,12 @@ public class CarrinhoController : ControllerBase
     public async Task<IActionResult> LerCarrinho([FromHeader] string token)
     {
         var usuarioId = await BuscaUsuarioId(token);
+
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+        
         var carrinho = await LerCarrinhoAtual(usuarioId);
         
         return carrinho is null ? Unauthorized() : Ok(carrinho.Produtos);
@@ -81,6 +135,12 @@ public class CarrinhoController : ControllerBase
     public async Task<IActionResult> RemoverProduto([FromHeader] string token, Produto produtoRemovido)
     {
         var usuarioId = await BuscaUsuarioId(token);
+
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+        
         var carrinho = await LerCarrinhoAtual(usuarioId);
         
         if (carrinho is null)
@@ -106,10 +166,15 @@ public class CarrinhoController : ControllerBase
     public async Task<IActionResult> VerHistorico([FromHeader] string token)
     {
         var usuarioId = await BuscaUsuarioId(token);
+
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
         
         var scanConditions = new List<ScanCondition>
         {
-            new("UsuarioId", ScanOperator.Equal, usuarioId),
+            new("UsuarioEmail", ScanOperator.Equal, usuarioId),
         };
         var result = await _context.ScanAsync<Carrinho>(scanConditions).GetRemainingAsync();
 
