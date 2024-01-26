@@ -18,19 +18,11 @@ public class CarrinhoController : ControllerBase
 
     private async Task<string?> BuscaUsuarioId(string token)
     {
-        var scanConditions = new List<ScanCondition>
-        {
-            new("Token", ScanOperator.Equal, token)
-        };
-            
-        var identificacoes = await _context.ScanAsync<Identificacao>(scanConditions).GetRemainingAsync();
+        var identificacao = await _context.LoadAsync<Identificacao>(token);
 
-        if (identificacoes is null || identificacoes.Count == 0)
-        {
-            return null;
-        }
+        var email = identificacao?.Email;
 
-        return identificacoes[0].Email;
+        return email;
     }
     
     private string GerarStringAleatoria(int tamanho)
@@ -66,7 +58,7 @@ public class CarrinhoController : ControllerBase
     {
         var scanConditions = new List<ScanCondition>
         {
-            new("UsuarioId", ScanOperator.Equal, usuarioEmail),
+            new("UsuarioEmail", ScanOperator.Equal, usuarioEmail),
         };
         var result = await _context.ScanAsync<Carrinho>(scanConditions).GetRemainingAsync();
 
@@ -84,7 +76,7 @@ public class CarrinhoController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> AdicionarProduto([FromHeader] string token, Produto novoProduto)
+    public async Task<IActionResult> AdicionarProduto([FromHeader] string token, [FromBody] Produto novoProduto)
     {
         var usuarioId = await BuscaUsuarioId(token);
 
@@ -106,7 +98,7 @@ public class CarrinhoController : ControllerBase
         }
         else
         {
-            produto.Quantidade += produto.Quantidade;
+            produto.Quantidade += novoProduto.Quantidade;
         }
 
         await _context.SaveAsync(carrinho);
@@ -132,7 +124,7 @@ public class CarrinhoController : ControllerBase
     }
     
     [HttpDelete]
-    public async Task<IActionResult> RemoverProduto([FromHeader] string token, Produto produtoRemovido)
+    public async Task<IActionResult> RemoverProduto([FromHeader] string token, [FromBody] Produto produtoRemovido)
     {
         var usuarioId = await BuscaUsuarioId(token);
 
