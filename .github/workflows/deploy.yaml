@@ -18,6 +18,6 @@ jobs:
       - name: deploy
         run: |
           dotnet tool install -g Amazon.Lambda.Tools
-          cd "App/src/App"
+          cd "backend-api-carrinho/src/backend-api-carrinho"
           dotnet lambda deploy-serverless -sn tcc-carrinho -sb serverlessrepositor
         
