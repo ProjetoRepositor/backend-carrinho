@@ -70,7 +70,12 @@ public class CarrinhoController : ControllerBase
 
         var response = result.OrderByDescending(r => r.CriadoEm).ToList()[0];
 
-        response.Produtos = response.Produtos.Where(p => p.Quantidade > 0).ToList();
+        response.Produtos = response.Produtos
+            .Where(p => p.Quantidade > 0)
+            .Where(p => p.CodigoDeBarras is not null)
+            .ToList();
+
+        await _context.SaveAsync(response);
 
         return response;
     }
@@ -78,13 +83,18 @@ public class CarrinhoController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> AdicionarProduto([FromHeader] string token, [FromBody] Produto novoProduto)
     {
+        if (novoProduto is null || novoProduto.CodigoDeBarras is null || novoProduto.CodigoDeBarras == "")
+        {
+            return BadRequest();
+        }
+
         var usuarioId = await BuscaUsuarioId(token);
 
         if (usuarioId is null)
         {
             return Unauthorized();
         }
-        
+
         var carrinho = await LerCarrinhoAtual(usuarioId);
         
         if (carrinho is null)
