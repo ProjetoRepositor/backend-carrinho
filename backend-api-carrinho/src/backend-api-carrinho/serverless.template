@@ -16,7 +16,8 @@
         "Role": null,
         "Policies": [
           "AWSLambda_FullAccess",
-          "AmazonDynamoDBFullAccess"
+          "AmazonDynamoDBFullAccess",
+          "S3FullAccess"
         ],
         "Events": {
           "ProxyResource": {

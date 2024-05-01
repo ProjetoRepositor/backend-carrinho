@@ -15,5 +15,7 @@
         <PackageReference Include="Amazon.Lambda.AspNetCoreServer" Version="8.1.0"/>
         <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.300.32" />
         <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.300" />
+        <PackageReference Include="AWSSDK.S3" Version="3.7.307.25" />
+        <PackageReference Include="EPPlus.Core" Version="1.5.4" />
     </ItemGroup>
 </Project>

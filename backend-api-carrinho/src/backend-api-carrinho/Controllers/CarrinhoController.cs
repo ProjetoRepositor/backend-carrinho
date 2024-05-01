@@ -1,8 +1,11 @@
 ﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
+using Amazon.S3;
+using Amazon.S3.Transfer;
 using backend_api_carrinho.Models;
 using Microsoft.AspNetCore.Mvc;
+using OfficeOpenXml;
 
 namespace backend_api_carrinho.Controllers;
 
@@ -107,6 +110,94 @@ public class CarrinhoController : ControllerBase
         
         return novoCarrinho is null ? Problem() : Ok(novoCarrinho.Produtos);
     }
+
+    private async Task <ExportHistory> FindExportHistory(string email)
+    {
+        var result = await _context.LoadAsync<ExportHistory>(email);
+        var response = result ?? new ExportHistory
+        {
+            Email = email,
+            Exports = new(),
+        };
+        return response;
+    }
+
+    [HttpGet("export-history")]
+    public async Task<IActionResult> GetExportHistory([FromHeader] string? token)
+    {
+        if (token is null) return Unauthorized();
+        
+        var usuarioId = await BuscaUsuarioId(token);
+
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+        
+        var history = await FindExportHistory(usuarioId);
+
+        return Ok(history);
+    }
+    
+    [HttpPost("export")]
+    public async Task<IActionResult> Export([FromBody] ExportRequest[] request, [FromHeader] string? token)
+    {
+        if (token is null) return Unauthorized();
+        
+        var usuarioId = await BuscaUsuarioId(token);
+
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+        
+        var stream = new MemoryStream();
+
+        using var package = new ExcelPackage(stream);
+    
+        var worksheet = package.Workbook.Worksheets.Add("Sheet1");
+        worksheet.Cells["A1"].Value = "Produto";
+        worksheet.Cells["B1"].Value = "Quantidade";
+
+        var contador = 1;
+    
+        foreach (var produto in request)
+        {
+            contador++;
+            worksheet.Cells[$"A{contador}"].Value = produto.Produto;
+            worksheet.Cells[$"B{contador}"].Value = produto.Quantidade;
+        }
+
+        package.Save();
+
+        stream.Position = 0;
+
+        var s3Client = new AmazonS3Client();
+
+        var bucketName = "imagens.tcc.caioruiz.com";
+        var fileName = "exports/" + Guid.NewGuid().ToString() + ".xlsx";
+
+        var fileTransferUtility = new TransferUtility(s3Client);
+        await fileTransferUtility.UploadAsync(stream, bucketName, fileName);
+
+        var url = $"https://{bucketName}/{fileName}";
+
+        var history = await FindExportHistory(usuarioId);
+
+        var newObject = new ExportObject
+        {
+            Url = url,
+            ExportDate = DateTime.Now,
+            QuantidadeProdutos = request.Length,
+        };
+        
+        history.Exports.Add(newObject);
+
+        await _context.SaveAsync(history);
+
+        return Ok(newObject);
+    }
+ 
 
     [HttpGet]
     public async Task<IActionResult> LerCarrinho([FromHeader] string token)
