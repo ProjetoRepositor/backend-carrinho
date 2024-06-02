@@ -40,14 +40,14 @@ public class StatusController : ControllerBase
             IdsTranscricoes = new(),
         };
 
-        var response = new List<Status>();
+        var response = new Status[transcricoes.IdsTranscricoes.Count];
 
         await Task.WhenAll(
             transcricoes.IdsTranscricoes.Select(
-                async id =>
+                async (id, selector) =>
                 {
                     var status = await _context.LoadAsync<Status>(id);
-                    response.Add(status);
+                    response[selector] = status;
                     Console.WriteLine(id);
                 }
             )
