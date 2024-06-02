@@ -197,8 +197,7 @@ public class CarrinhoController : ControllerBase
 
         return Ok(newObject);
     }
- 
-
+    
     [HttpGet]
     public async Task<IActionResult> LerCarrinho([FromHeader] string token)
     {
